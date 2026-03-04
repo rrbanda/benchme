@@ -8,13 +8,26 @@
 
 ---
 
-## Important Caveats (read before using this data)
+## What Was Tested vs What the Email Asks
 
-1. **Models tested are not the production models.** We tested what was available on the Llama Stack instance: Llama 3.2 3B (RHOAI/vLLM) and Gemini 2.5 Flash (Google). The cost calculator spreadsheet references GPT-4o, Gemini 1.5 Flash/Pro, Llama 13b/70b, Mixtral 7b/8x7b. To get numbers directly comparable to the spreadsheet, re-run with the actual production model.
+The email asks for benchmarking data across these deployment options:
 
-2. **Single-inference-call measurements only.** Agentic-chat involves multiple inference calls per user conversation (tool calls, HITL approvals). A typical conversation uses ~3x the tokens of a single call. The daily projections below apply this 3x multiplier as an estimate.
+| Deployment Option (from email) | Tested? | What we used instead |
+|---|---|---|
+| **Stellar: Shared Throughput** | NO | No Stellar-hosted model available on our Llama Stack instance |
+| **Stellar: Provisioned Throughput** | NO | Same -- no Stellar backend |
+| **Stellar: Dedicated Hardware** | NO | Same -- no Stellar backend |
+| **Stellar: Batch Processing** | NO | Same -- no Stellar backend |
+| **Dedicated HW + Self-Hosted Model** | YES | RHOAI/vLLM with Llama 3.2 3B on OpenShift |
 
-3. **Token counts are what the API reported -- not estimated.** All token numbers come directly from the Llama Stack `usage` field. We did not compute tokens client-side.
+**Additionally tested (not in the email but available on our Llama Stack):**
+- **Google Gemini 2.5 Flash** (cloud API) -- provides a cloud model baseline for comparison
+
+**To fill in the Stellar rows**, we need either:
+- A Stellar-hosted model registered on the Llama Stack instance, OR
+- Direct access to a Stellar API endpoint
+
+The `benchmark.py` script is ready to run against Stellar once access is available.
 
 ---
 
@@ -23,59 +36,36 @@
 | Label | Model Identifier | Backend | Model Size |
 |---|---|---|---|
 | **RHOAI** | `vllm-inference/llama-32-3b-instruct` | vLLM on Red Hat OpenShift AI | 3B params |
-| **Gemini** | `gemini/models/gemini-2.5-flash` | Google Gemini API (via Llama Stack) | Large (proprietary) |
+| **Gemini** | `gemini/models/gemini-2.5-flash` | Google Gemini API (via Llama Stack) | Large (proprietary, reasoning model) |
 
-Both hit the same Llama Stack URL. The `--model` parameter routes to different backends.
+Both hit the same Llama Stack URL. The `--model` parameter routes to different backends. Neither backend is Stellar.
 
 ---
 
-## Benchmarking Table (per the email format)
+## Benchmarking Table
 
-| Deployment Option | Token Count (per request avg) | Token Count (daily estimate at 600 conv/day, 3x agentic multiplier) | Max Response Time | Avg Response Time | SLA Commitment | Pricing Model |
+| Deployment Option | Token Count (per request avg) | Daily Estimate (600 conv/day, 3x agentic) | Max Response Time | Avg Response Time | SLA | Pricing |
 |---|---|---|---|---|---|---|
-| **Stellar: Shared Throughput** | 73,675 total | ~132.6M tokens/day | 28.5 sec | 12.5 sec | None | $$ / 1M tokens |
-| **Stellar: Provisioned Throughput** | 73,675 total | ~132.6M tokens/day | 28.5 sec | 12.5 sec | Moderate | $$$ / Month |
-| **Stellar: Dedicated Hardware** | 73,675 total | ~132.6M tokens/day | 28.5 sec | 12.5 sec | Strong | $$$$$ / Year |
-| **Stellar: Batch Processing** | 73,675 total | ~132.6M tokens/day | N/A (offline) | N/A (offline) | None | $ / 1M tokens |
-| **Dedicated HW + Self-Hosted (RHOAI)** | 538 total | ~1.0M tokens/day | 32.7 sec | 11.9 sec | N/A (self-managed) | Hardware cost only |
+| **Stellar: Shared Throughput** | NOT TESTED | -- | -- | -- | None | $$ / 1M tokens |
+| **Stellar: Provisioned Throughput** | NOT TESTED | -- | -- | -- | Moderate | $$$ / Month |
+| **Stellar: Dedicated Hardware** | NOT TESTED | -- | -- | -- | Strong | $$$$$ / Year |
+| **Stellar: Batch Processing** | NOT TESTED | -- | -- | -- | None | $ / 1M tokens |
+| **Dedicated HW + Self-Hosted (RHOAI)** | **538 total** (117 in / 422 out) | ~1.0M tokens/day | **32.7 sec** | **11.9 sec** | N/A | Hardware cost only |
+| *Google Gemini 2.5 Flash (reference)* | *73,675 total (1,674 in / 25,751 out / 46,250 thinking)* | *~132.6M tokens/day* | *28.5 sec* | *12.5 sec* | *N/A* | *Google Vertex pricing* |
 
-**How daily estimate was calculated:**
-- Gemini: 73,675 tokens/request x 3 calls/conversation x 600 conversations/day = **132,615,000 tokens/day** (~133M)
-- RHOAI: 538 tokens/request x 3 calls/conversation x 600 conversations/day = **968,400 tokens/day** (~1M)
+**SLA values** are from the Stellar tier definitions. Token counts, response times, and daily estimates are only available for the two models we tested.
 
-**Comparison to cost calculator assumptions:** The spreadsheet assumes 50M input + 25M output = 75M total tokens/day. Our Gemini estimate of ~133M/day is **higher** because Gemini 2.5 Flash includes ~46,250 thinking tokens per request (64% of total) that are not visible as input or output. If thinking tokens are excluded from billing, the billable volume drops to ~49M/day -- close to the spreadsheet's assumption.
-
----
-
-## Cost Calculator Inputs (to plug into the spreadsheet)
-
-Based on ~600 conversations/day with a 3x agentic multiplier:
-
-### If thinking tokens ARE billed (total_tokens):
-
-| Input | Gemini (Stellar tiers) | RHOAI (Self-Hosted) |
-|---|---|---|
-| **Input tokens / day** | ~3,013,200 (~3M) | ~210,600 (~0.2M) |
-| **Output tokens / day** | ~46,351,800 (~46M) | ~759,600 (~0.8M) |
-| **Thinking tokens / day** | ~83,250,000 (~83M) | 0 |
-| **Total tokens / day** | ~132,615,000 (~133M) | ~970,200 (~1M) |
-| **% increase YoY** | 10% (per spreadsheet) | 10% |
-
-### If thinking tokens are NOT billed (input + output only):
-
-| Input | Gemini (Stellar tiers) | RHOAI (Self-Hosted) |
-|---|---|---|
-| **Input tokens / day** | ~3,013,200 (~3M) | ~210,600 (~0.2M) |
-| **Output tokens / day** | ~46,351,800 (~46M) | ~759,600 (~0.8M) |
-| **Total billable / day** | ~49,365,000 (~49M) | ~970,200 (~1M) |
-
-The ~49M total (without thinking) is close to the cost calculator's 75M baseline (50M input + 25M output). The difference is because our prompts are representative of the agentic-chat workload -- your actual mix may differ.
+**Daily estimate calculation:**
+- RHOAI: 538 tokens/req x 3 calls/conv x 600 conv/day = **968,400 tokens/day** (~1M)
+- Gemini: 73,675 tokens/req x 3 calls/conv x 600 conv/day = **132,615,000 tokens/day** (~133M)
 
 ---
 
 ## Detailed Measured Metrics
 
 ### RHOAI / vLLM (Self-Hosted) -- `vllm-inference/llama-32-3b-instruct`
+
+Maps to: **Dedicated HW + Self-Hosted Model** in the email.
 
 ```
 Runs:              30 / 30 successful (100%)
@@ -104,7 +94,9 @@ BY PROMPT CATEGORY
   structured:   avg 347 tokens,  avg  5,163 ms
 ```
 
-### Gemini (Cloud API) -- `gemini/models/gemini-2.5-flash`
+### Google Gemini 2.5 Flash (Cloud API) -- `gemini/models/gemini-2.5-flash`
+
+Maps to: **Google Vertex** in the cost calculator (NOT Stellar).
 
 ```
 Runs:              30 / 30 successful (100%)
@@ -137,7 +129,18 @@ BY PROMPT CATEGORY
 
 ## Notable Findings / Key Considerations
 
-### 1. Thinking Token Overhead
+### 1. Stellar tiers are not testable with current setup
+
+Our Llama Stack instance does not have any Stellar-hosted models registered. It has:
+- **vLLM/RHOAI models** (self-hosted on OpenShift): `vllm-inference/llama-32-3b-instruct`, `vllm-orchestrator/orchestrator-8b`
+- **Google Gemini models** (cloud API): `gemini/models/gemini-2.5-flash`, `gemini/models/gemini-2.0-flash`, and others
+
+To benchmark the Stellar tiers, we need a Stellar-hosted model endpoint or a Stellar model registered on the Llama Stack instance. Once available, run:
+```bash
+python3 benchmark.py --url <LLAMA_STACK_URL> --model "<stellar-model-id>" --label stellar --runs 5
+```
+
+### 2. Thinking token overhead (Gemini 2.5 Flash)
 
 Gemini 2.5 Flash is a reasoning model. Its `total_tokens` includes internal chain-of-thought tokens NOT reflected in `input_tokens` or `output_tokens`. On average, **64% of total tokens are thinking tokens**.
 
@@ -150,50 +153,54 @@ Gemini 2.5 Flash is a reasoning model. Its `total_tokens` includes internal chai
 | Creative writing | 1,889 | 14,394 | 87% |
 | Structured extraction | 1,159 | 4,194 | 72% |
 
-**This is the single biggest factor for cost.** If the Shared Throughput tier ($$/1M tokens) bills on `total_tokens`, the effective cost is ~3x higher than what input + output alone would suggest.
+This is relevant if the production model (on Stellar or elsewhere) is also a reasoning model. Non-reasoning models (like Gemini 2.0 Flash or Llama 3.2 3B) do not have this overhead.
 
-### 2. Models tested are not the models in the cost calculator
+### 3. Self-hosted model is a 3B model (small)
 
-The cost calculator spreadsheet references: GPT-4o, GPT-4, GPT-3.5, Gemini 1.5 Flash/Pro, Llama 13b/70b, Mixtral 7b/8x7b.
+The RHOAI benchmark used Llama 3.2 **3B** Instruct -- a small model. The cost calculator spreadsheet references Llama **13b** and **70b**, and Mixtral **7b** and **8x7b**, all significantly larger. A production self-hosted deployment would likely use a larger model, which would:
+- Produce more tokens per response (longer, more detailed answers)
+- Have higher latency
+- Require more GPU resources (more V100/A100 cards)
 
-We tested: Llama 3.2 3B (much smaller than Llama 70b) and Gemini 2.5 Flash (a different, newer model than Gemini 1.5 Flash). The token counts and latency will differ with the production model. To get spreadsheet-ready numbers:
-- Re-run `benchmark.py` with the actual model you plan to deploy
-- The script works with any model registered on Llama Stack
+The 538 tokens/request average for the 3B model is likely an **underestimate** of what a production-grade model would produce.
 
-### 3. Agentic overhead not captured in these numbers
+### 4. Agentic overhead not captured
 
 These benchmarks measure single inference calls. In production, each user conversation involves:
 - 1 initial inference call
-- 1-4 additional calls for MCP tool execution (tool call -> tool result -> model processes)
+- 1-4 additional calls for MCP tool execution
 - Possible additional calls for HITL approval flows
 
 The 3x multiplier used in daily estimates is conservative. Complex multi-tool conversations could be 5x+.
 
-### 4. Latency comparison
+### 5. Latency comparison
 
-Both backends showed similar average latency (~12 sec), but different profiles:
-- **RHOAI**: Higher variance (2-33 sec range), slower on complex prompts but faster on simple ones
-- **Gemini**: More consistent (1-28 sec range), faster median (9.1 sec vs 10.5 sec)
+| Metric | RHOAI (3B, self-hosted) | Gemini 2.5 Flash (cloud) |
+|---|---|---|
+| Avg | 11.9 sec | 12.5 sec |
+| Median | 10.5 sec | 9.1 sec |
+| P95 | 23.6 sec | 25.4 sec |
+| Max | 32.7 sec | 28.5 sec |
 
-For real-time SLA-dependent workloads, the P95 latency matters: ~24 sec (RHOAI) vs ~25 sec (Gemini).
+Similar overall, but RHOAI has higher variance. A larger self-hosted model (70B) would be significantly slower.
 
-### 5. Batch Processing suitability
+### 6. Batch Processing suitability
 
-Batch Processing ($/1M tokens, lowest cost) is only suitable for offline workloads. The Agentic Chat plugin is real-time interactive, so Batch Processing would NOT be appropriate for the primary use case. It could be used for background tasks like knowledge base indexing or conversation summarization.
+Batch Processing ($/1M tokens) is only suitable for offline workloads. The Agentic Chat plugin is real-time interactive, so Batch Processing would NOT be appropriate for the primary use case.
 
 ---
 
-## What you need to provide to complete the email response
+## What is still needed to complete the email response
 
-| Item | Status | Notes |
+| Item | Status | Who provides it |
 |---|---|---|
-| Token count per request | MEASURED | From benchmark runs above |
-| Max / Avg response time | MEASURED | From benchmark runs above |
-| SLA commitment per tier | KNOWN | From Stellar tier definitions (Image 1) |
-| Daily token volume | ESTIMATED | ~133M/day (with thinking) or ~49M/day (without). Depends on actual user volume and whether thinking tokens count. |
-| Actual $$ pricing per tier | NOT AVAILABLE | We have the pricing model ($$/1M, $$$/month, etc.) but not the actual dollar amounts. These come from the Stellar team. |
-| GPU costs for on-prem | NOT AVAILABLE | The spreadsheet has V100/A100 costs. These are from the Stellar/infrastructure team, not from benchmarking. |
-| Production model token counts | NOT MEASURED | Re-run benchmark.py with the actual production model for accurate numbers. |
+| Stellar tier token counts & latency | **NOT TESTED** | Need Stellar model access, then re-run benchmark.py |
+| Self-hosted (RHOAI) token counts & latency | **MEASURED** (3B model) | Done -- but re-run with production model (70B) for accurate numbers |
+| Google Gemini token counts & latency | **MEASURED** (reference only) | Done -- maps to Google Vertex, not Stellar |
+| SLA commitment per tier | **KNOWN** | From Stellar tier definitions |
+| Actual dollar pricing per tier | **NOT AVAILABLE** | Stellar team provides this |
+| GPU costs for on-prem | **NOT AVAILABLE** | From Stellar/infrastructure team |
+| Daily user/conversation volume | **ESTIMATED** (~600 conv/day) | Refine based on actual usage data |
 
 ---
 
@@ -224,7 +231,7 @@ python3 benchmark.py \
 
 ## Raw Data Files
 
-- `results-rhoai.csv` / `results-rhoai.json` -- RHOAI benchmark data
-- `results-gemini.csv` / `results-gemini.json` -- Gemini benchmark data
-- `benchmark.py` -- reusable script
+- `results-rhoai.csv` / `results-rhoai.json` -- RHOAI benchmark data (Llama 3.2 3B)
+- `results-gemini.csv` / `results-gemini.json` -- Gemini benchmark data (Gemini 2.5 Flash)
+- `benchmark.py` -- reusable script (works with any Llama Stack model)
 - `prompts.json` -- test prompts used
