@@ -1,0 +1,55 @@
+{
+  "description": "Representative prompts for agentic-chat workload benchmarking.",
+  "prompts": [
+    {
+      "id": "simple-qa",
+      "category": "simple",
+      "input": "What is Kubernetes? Answer in two sentences."
+    },
+    {
+      "id": "short-explanation",
+      "category": "simple",
+      "input": "Explain the difference between a container and a virtual machine in 3 bullet points."
+    },
+    {
+      "id": "code-generation",
+      "category": "code",
+      "input": "Write a Python function that reads a CSV file, filters rows where the 'status' column equals 'active', and returns the filtered data as a list of dictionaries. Include error handling and type hints."
+    },
+    {
+      "id": "code-review",
+      "category": "code",
+      "input": "Review this code for bugs and improvements:\n\n```python\ndef process_users(users):\n    results = []\n    for user in users:\n        if user['age'] > 18:\n            name = user['name'].strip().lower()\n            results.append({'name': name, 'email': user['email']})\n    return results\n```\n\nProvide specific suggestions with corrected code."
+    },
+    {
+      "id": "reasoning-math",
+      "category": "reasoning",
+      "input": "A train leaves station A at 9:00 AM traveling at 60 mph. Another train leaves station B (300 miles away) at 10:00 AM traveling toward station A at 90 mph. At what time do they meet? Show your reasoning step by step."
+    },
+    {
+      "id": "reasoning-architecture",
+      "category": "reasoning",
+      "input": "Design a microservices architecture for an e-commerce platform that needs to handle 10,000 orders per minute. Include service boundaries, communication patterns, database choices, and explain your trade-offs. Be concise but thorough."
+    },
+    {
+      "id": "long-input-summarize",
+      "category": "long-context",
+      "input": "Summarize the key points from this technical specification:\n\nThe Model Context Protocol (MCP) is an open protocol that standardizes how applications provide context to LLMs. Think of MCP like a USB-C port for AI applications. Just as USB-C provides a standardized way to connect your devices to various peripherals and accessories, MCP provides a standardized way to connect AI models to different data sources and tools.\n\nMCP follows a client-server architecture where a host application can connect to multiple servers. Each server exposes specific capabilities through the standardized Model Context Protocol. Servers can provide three main types of capabilities: Resources (file-like data that can be read by clients), Tools (functions that can be called by the LLM), and Prompts (pre-written templates for users). The protocol uses JSON-RPC 2.0 as its transport layer.\n\nKey design principles include: Servers should be extremely easy to build, Servers should be highly composable, Servers should not be able to read the whole conversation or intercept other servers, and Features can be added progressively. The architecture separates concerns between the host (which manages connections and security), clients (which maintain connections to servers), and servers (which expose capabilities).\n\nTransport mechanisms include stdio (for local servers) and HTTP with Server-Sent Events (for remote servers). The protocol supports capability negotiation, where during connection initialization, clients and servers exchange their supported capabilities. This allows for progressive feature adoption and backward compatibility.\n\nSecurity considerations include: servers only expose specific, well-defined capabilities; hosts control which servers can connect; transport security through TLS for remote connections; and input validation on all messages. The protocol also supports progress reporting, cancellation, and logging.\n\nProvide a 5-bullet summary."
+    },
+    {
+      "id": "creative-writing",
+      "category": "creative",
+      "input": "Write a technical blog post introduction (3 paragraphs) about why organizations should adopt an Internal Developer Platform. Target audience: engineering managers."
+    },
+    {
+      "id": "multi-step-analysis",
+      "category": "reasoning",
+      "input": "Compare and contrast three approaches to implementing authentication in a microservices architecture: (1) API Gateway with JWT, (2) Service Mesh with mTLS, (3) Distributed session store. For each approach, evaluate: security strength, performance impact, operational complexity, and scalability. Then recommend which approach is best for a team of 5 developers maintaining 12 microservices."
+    },
+    {
+      "id": "data-extraction",
+      "category": "structured",
+      "input": "Extract structured information from this text and return it as JSON:\n\nJohn Smith joined Acme Corp as a Senior Engineer on March 15, 2024. He previously worked at TechCo for 5 years where he led the Platform team. His expertise includes Kubernetes, Go, and distributed systems. He holds a Master's degree in Computer Science from MIT (2018). Contact: john.smith@acme.com, based in San Francisco office.\n\nReturn JSON with fields: name, company, title, start_date, previous_company, previous_tenure, skills (array), education (object with degree, field, school, year), email, location."
+    }
+  ]
+}
